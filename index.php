@@ -1,57 +1,75 @@
 <?php
 $connection = new PDO('mysql:host=localhost; dbname=train6; charset=utf8', 'root', 'root');
 
+//для массовой загрузки файлов
 if (isset($_POST['go'])) {
-    $fileName = $_FILES['file']['name'];
-    $fileType = $_FILES['file']['type'];
-    $fileTmp_name = $_FILES['file']['tmp_name'];
-    $fileError = $_FILES['file']['error'];
-    $fileSize = $_FILES['file']['size'];
-
-    $fileExtension = strtolower(end(explode('.', $fileName)));
-
-    if (count(explode('.', $fileName))>2) {
-        $n = count(explode('.', $fileName))-2;
-        for ($i=0; $i==$n; $i++) {
-            $fileName .= explode('.', $fileName)[$i] . '.';
-        }
+    $files = array();
+    $diff = count($_FILES['file']) - count($_FILES['file'], COUNT_RECURSIVE);
+    if ($diff == 0) {
+        $files = array($_FILES['file']);
     } else {
-        $fileName = explode('.', $fileName)[0];
+        foreach($_FILES['file'] as $k => $l) {
+            foreach($l as $i => $v) {
+                $files[$i][$k] = $v;
+            }
+        }
     }
+    foreach ($files as $file) {
 
-    $fileName = preg_replace('/[0-9]/', '', $fileName);
-    $fileExtensionArr = ['jpg', 'jpeg', 'png'];
+        $fileName = strval($file['name']);
+        $fileType = strval($file['name']);
+        $fileTmp_name = strval($file['tmp_name']);
+        $fileError = strval($file['error']);
+        $fileSize = strval($file['size']);
+        $fileExtension = strtolower(end(explode('.', $fileName)));
 
-    if (in_array($fileExtension, $fileExtensionArr)) {
-        if ($fileSize<5000000) {
-            if ($fileError == 0) {
-                $connection->query("INSERT INTO images (name, extension) VALUES ('$fileName', '$fileExtension')");
+        if (count(explode('.', $fileName))>2) {
+            for ($i=0; $i == count(explode('.', $fileName))-2; $i++) {
+                $fileName .= explode('.', $fileName)[$i] . '.';
+            }
+        }
+        else {
+            $fileName = explode('.', $fileName)[0];
+        }
 
-                $lastId = $connection->query("SELECT MAX(id) FROM images");
-                $lastId = $lastId->fetch();
-                $lastId = $lastId[0];
+        $fileName = preg_replace('/[0-9]/' , '', $fileName);
 
-                $fileNameNew = $lastId . $fileName . '.' . $fileExtension;
-                $fileDestination = 'uploads/' . $fileNameNew;
-                move_uploaded_file($fileTmp_name, $fileDestination);
+        $fileExtensionArr = ['jpg', 'jpeg', 'png'];
+
+        if (in_array($fileExtension, $fileExtensionArr)) {
+            if ($fileSize < 5000000) {
+                if ($fileError == 0) {
+                    $connection->query("INSERT INTO images (name, extension) VALUES ('$fileName', '$fileExtension')");
+
+                    $lastId = $connection->query("SELECT MAX(id) FROM images");
+                    $lastId = $lastId->fetchAll();
+                    $lastId = $lastId[0][0];
+
+                    $fileNameNew = $lastId . $fileName . '.' . $fileExtension;
+                    $fileDestination = 'uploads/' . $fileNameNew;
+                    move_uploaded_file($fileTmp_name, $fileDestination);
 
 
+                } else {
+                    echo 'Что-то пошло не так :(';
+                }
             } else {
-                echo 'Что-то пошло не так :(';
+                echo 'Слишком большой размер файла';
             }
         } else {
-            echo 'Слишком большой размер файла';
+            echo 'Неверный тип файла';
         }
-    } else {
-        echo 'Неверный тип файла';
     }
 
-
 }
 
-if ($_POST) {
+/*echo "<pre>";
+var_dump($_FILES);
+echo "</pre>";*/
+
+/*if ($_POST) {
     header("Location:index.php");
-}
+}*/
 
 $data = $connection->query("SELECT * FROM images");
 
@@ -61,7 +79,7 @@ foreach ($data as $img) {
     if (file_exists($image)) {
         echo "<div>";
         echo "<img width='300' src='$image'>";
-        echo "<form method='post'> <input type='submit' name='delete". $img['id'] ."' value='Удалить'></form>";
+        echo "<form method='post'> <input type='submit' name='delete" . $img['id'] . "' value='Удалить'></form>";
         echo "<div>";
     }
 
@@ -74,19 +92,15 @@ foreach ($data as $img) {
             unlink($image);
         }
     }
-
 }
 
-
 echo "</div>";
-
-
 
 ?>
 
 
 
 <form method="post", enctype="multipart/form-data">
-    <input type="file" name="file"  required>
+    <input type="file" multiple name="file[]"  required>
     <input type="submit" value="Добавить" name="go">
 </form>
